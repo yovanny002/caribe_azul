@@ -1,5 +1,5 @@
 const express = require('express');
-const router = express.Router(); // ✅ correcto
+const router = express.Router(); 
 const path = require('path');
 const app = express();
 const methodOverride = require('method-override');
@@ -11,12 +11,14 @@ const cookieParser = require('cookie-parser');
 // const csrf = require('csurf');
 require('dotenv').config();
 
+// 🚀 Activa trust proxy para Render y proxies inversos
+app.set('trust proxy', 1); // Necesario para express-rate-limit y Render
 
 // Configuración de EJS
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(expressLayouts);
-app.set('layout', 'layouts/layout'); // Layout por defecto
+app.set('layout', 'layouts/layout'); 
 
 // Middlewares básicos
 app.use(express.urlencoded({ extended: true }));
@@ -32,46 +34,32 @@ app.use(session({
   saveUninitialized: false,
   cookie: { 
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000,
+    maxAge: 24 * 60 * 60 * 1000, 
     httpOnly: true
   }
 }));
 
-
-// CSRF debe ir después de session y cookieParser
-// app.use(csrf({ cookie: false }));
-
-// Middleware para exponer el token CSRF a las vistas EJS
-// app.use((req, res, next) => {
-//   res.locals.csrfToken = req.csrfToken();
-//   next();
-// });
-
 // Flash messages
 app.use(flash());
 
-// Middleware para variables globales
+// Variables globales
 app.use((req, res, next) => {
   res.locals.success_msg = req.flash('success_msg');
   res.locals.error_msg = req.flash('error_msg');
   res.locals.user = req.session.user || null;
+  res.locals.usuario = req.session.user || null;
   next();
 });
 
-// Middleware de autenticación (para vistas)
+// Autenticación
 app.use(authMiddleware.setUser);
 
-// CORS para API
+// CORS seguro
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   next();
 });
-app.use((req, res, next) => {
-  res.locals.usuario = req.session.user || null;
-  next();
-});
-
 
 // Rutas
 const authRoutes = require('./routes/auth');
@@ -89,17 +77,18 @@ app.use('/prestamos', authMiddleware.ensureAuthenticated, prestamosRoutes);
 app.use('/reportes', authMiddleware.ensureAuthenticated, reportesRoutes);
 app.use('/cobradores', authMiddleware.ensureAuthenticated, cobradoresRoutes);
 app.use('/rutas', authMiddleware.ensureAuthenticated, rutasRoutes);
+
+// Logout
 app.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       console.error('Error al cerrar sesión:', err);
       return res.redirect('/');
     }
-    res.clearCookie('connect.sid'); // borra la cookie de sesión
-    res.redirect('/auth/login'); // o solo /login si no usas prefijo
+    res.clearCookie('connect.sid');
+    res.redirect('/auth/login');
   });
 });
-  
 
 // Ruta principal
 app.get('/', (req, res) => {
@@ -109,24 +98,20 @@ app.get('/', (req, res) => {
 // Manejo de errores
 app.use((err, req, res, next) => {
   console.error(err.stack);
-
   const statusCode = err.status || 500;
-  const errorResponse = {
-    error: {
-      message: err.message || 'Error interno del servidor',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    }
-  };
-
   if (req.accepts('html')) {
-    return res.status(statusCode).render('error', {
+    res.status(statusCode).render('error', {
       title: 'Error',
-      message: errorResponse.error.message,
+      message: err.message || 'Error interno del servidor',
       error: process.env.NODE_ENV === 'development' ? err : null
     });
+  } else {
+    res.status(statusCode).json({
+      error: {
+        message: err.message || 'Error interno del servidor'
+      }
+    });
   }
-
-  res.status(statusCode).json(errorResponse);
 });
 
 // Iniciar servidor

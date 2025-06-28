@@ -27,7 +27,7 @@ app.use(cookieParser());
 
 // Configuración de sesión
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'tu_secreto_super_seguro',
+  secret: process.env.SESSION_SECRET,
   resave: true,
   saveUninitialized: false,
   cookie: { 
